@@ -6,10 +6,12 @@ import android.appwidget.AppWidgetProvider;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Bundle;
 import android.util.Log;
 import android.widget.RemoteViews;
 
 import com.example.android.testwidget.Model.BakingFood;
+import com.example.android.testwidget.Model.Ingredient;
 import com.example.android.testwidget.Utils.ApiClient;
 import com.example.android.testwidget.Utils.ApiInterface;
 
@@ -26,37 +28,30 @@ import retrofit2.Response;
  */
 public class WidgetProvider extends AppWidgetProvider {
 
-    private static final String TAG = "BakingWidgetProvider";
-
-    static void updateAppWidget(final Context context, AppWidgetManager appWidgetManager,
-                                 int appWidgetId) {
-
-        String[] items={"lorem", "ipsum", "dolor",
-                "sit", "amet", "consectetuer",
-                "adipiscing", "elit", "morbi",
-                "vel", "ligula", "vitae",
-                "arcu", "aliquet", "mollis",
-                "etiam", "vel", "erat",
-                "placerat", "ante",
-                "porttitor", "sodales",
-                "pellentesque", "augue",
-                "purus"};
+    private static final String TAG = "WidgetProvider";
 
 
-        Intent svcIntent=new Intent(context, WidgetService.class);
-        //svcIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId);
-        svcIntent.putExtra(MainActivity.EXTRA_FOOD_LIST, items);
-        svcIntent.setData(Uri.parse(svcIntent.toUri(Intent.URI_INTENT_SCHEME)));
+    static void updateAppWidget(Context context, AppWidgetManager appWidgetManager,
+                                List<BakingFood> bakingFood, int appWidgetId) {
 
         RemoteViews widget=new RemoteViews(context.getPackageName(),
                 R.layout.widget_provider);
 
-        widget.setTextViewText(R.id.widget_ingredient_list_title, "EXAMPLE");
+        Intent svcIntent=new Intent(context, WidgetService.class);
+
+        Bundle extraBundle = new Bundle();
+        extraBundle.putSerializable(MainActivity.EXTRA_FOOD_LIST_INGREDIENT, (Serializable) bakingFood.get(0).getIngredients());
+        svcIntent.putExtra(MainActivity.BUNDLE_FOOD_LIST_INGREDIENT, extraBundle);
+
+        svcIntent.setData(Uri.parse(svcIntent.toUri(Intent.URI_INTENT_SCHEME)));
+
+        widget.setTextViewText(R.id.widget_ingredient_list_title, bakingFood.get(0).getName());
 
         widget.setRemoteAdapter(R.id.widget_ingredients_list,
-                svcIntent);
+                        svcIntent);
 
         Intent clickIntent=new Intent(context, MainActivity.class);
+        clickIntent.putExtra(MainActivity.EXTRA_FOOD_LIST, (Serializable) bakingFood);
         PendingIntent clickPI=PendingIntent
                 .getActivity(context, 0,
                         clickIntent,
@@ -65,18 +60,46 @@ public class WidgetProvider extends AppWidgetProvider {
         //widget.setPendingIntentTemplate(R.id.widget_ingredients_list, clickPI);
 
         widget.setOnClickPendingIntent(R.id.widget_ingredient_list_title, clickPI);
-
         appWidgetManager.updateAppWidget(appWidgetId, widget);
     }
 
-
     @Override
-    public void onUpdate(Context ctxt, AppWidgetManager appWidgetManager,
-                         int[] appWidgetIds) {
+    public void onUpdate(final Context ctxt, final AppWidgetManager appWidgetManager,
+                         final int[] appWidgetIds) {
+        updateBakingFoodRemoteWidgets(ctxt, appWidgetManager, appWidgetIds);
+    }
+
+
+    private static void updateBakingFoodRemoteWidgets(final Context ctxt, final AppWidgetManager appWidgetManager,
+                                                final int[] appWidgetIds) { //you can add parameters to this to be used in Service
+
+        ApiInterface apiInterface = ApiClient.getClient().create(ApiInterface.class);
 
         // There may be multiple widgets active, so update all of them
-        for (int appWidgetId : appWidgetIds) {
-            updateAppWidget(ctxt, appWidgetManager, appWidgetId);
+        for (final int appWidgetId : appWidgetIds) {
+
+            Call<List<BakingFood>> call = apiInterface.getBakingFoods();
+            call.enqueue(new Callback<List<BakingFood>>() {
+                @Override
+                public void onResponse(Call<List<BakingFood>> call, Response<List<BakingFood>> response) {
+                    //list = response.body();
+                    List<BakingFood> list = response.body();
+
+                    List<BakingFood> tempList = new ArrayList<>();
+
+                    // generate random index between 0 to (list size - 1). eg list size of 4, will an integer generate between 0 to 3
+                    int randomInt = 0 + (int) (Math.random() * (((list.size() - 1) - 0) + 1));
+
+                    tempList.add(list.get(randomInt));
+
+                    updateAppWidget(ctxt, appWidgetManager, tempList, appWidgetId);
+                }
+
+                @Override
+                public void onFailure(Call<List<BakingFood>> call, Throwable t) {
+                    //Log.e(TAG, "onFailure "+ t.getLocalizedMessage());
+                }
+            });
         }
 
     }

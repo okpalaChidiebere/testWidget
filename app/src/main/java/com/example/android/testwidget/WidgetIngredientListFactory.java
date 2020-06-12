@@ -1,21 +1,34 @@
 package com.example.android.testwidget;
 
+import android.appwidget.AppWidgetManager;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Bundle;
+import android.util.Log;
 import android.widget.RemoteViews;
 import android.widget.RemoteViewsService;
 
+import com.example.android.testwidget.Model.BakingFood;
+import com.example.android.testwidget.Model.Ingredient;
+
+import java.util.List;
+
 public class WidgetIngredientListFactory implements RemoteViewsService.RemoteViewsFactory {
+
+    private static final String TAG = "IngredientListFactory";
 
     private Context ctxt=null;
     private String[] items;
     //private int appWidgetId;
 
+    private List<Ingredient> list;
+
     public WidgetIngredientListFactory(Context ctxt, Intent intent) {
         this.ctxt=ctxt;
-        //appWidgetId=intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,
-               // AppWidgetManager.INVALID_APPWIDGET_ID);
-        items = intent.getStringArrayExtra(MainActivity.EXTRA_FOOD_LIST);
+
+        Bundle bundle = intent.getExtras();
+        bundle = bundle.getBundle(MainActivity.BUNDLE_FOOD_LIST_INGREDIENT);
+        list = (List<Ingredient>) bundle.getSerializable(MainActivity.EXTRA_FOOD_LIST_INGREDIENT);
 
     }
 
@@ -31,7 +44,7 @@ public class WidgetIngredientListFactory implements RemoteViewsService.RemoteVie
 
     @Override
     public int getCount() {
-        return(items.length);
+        return(list.size());
     }
 
     @Override
@@ -40,10 +53,10 @@ public class WidgetIngredientListFactory implements RemoteViewsService.RemoteVie
                 R.layout.baking_ingredients_list_item);
 
 
-        row.setTextViewText(R.id.tv_foodIngredient, items[position]);
+        row.setTextViewText(R.id.tv_foodIngredient, list.get(position).getIngredient());
 
-        String measurement = items[position] +" CUP";
-        row.setTextViewText(R.id.tv_IngredientMeasurement,measurement);
+        String measurement = list.get(position).getQuantity() +" "+list.get(position).getMeasure();
+        row.setTextViewText(R.id.tv_IngredientMeasurement, measurement);
 
         /*Intent i=new Intent();
         Bundle extras=new Bundle();
